@@ -1,6 +1,7 @@
 const Router = require('koa-router')
-const { register, login } = require('../controller/user.controller')
-const { userValidator, verifyUser, cryptPassword } = require('../middleware/user.middleware')
+const { register, login, update } = require('../controller/user.controller')
+const { userValidator, verifyUser, cryptPassword, verifyLogin } = require('../middleware/user.middleware')
+const { auth } = require('../middleware/auth.middleware')
 
 const router = new Router({ prefix: '/user' })
 
@@ -8,8 +9,13 @@ const router = new Router({ prefix: '/user' })
 //   ctx.body = 'user路由'
 // })
 
+// 注册接口
 router.post('/register', userValidator, verifyUser, cryptPassword, register)
 
-router.post('/login', login)
+// 登录接口
+router.post('/login', userValidator, verifyLogin, login)
+
+// 修改密码接口
+router.patch('/', auth, cryptPassword, update)
 
 module.exports = router

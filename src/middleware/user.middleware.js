@@ -1,14 +1,19 @@
 const bcrypt = require('bcryptjs')
 
 const { getUserInfo } = require('../service/user.service')
-const { userFormatError, userAlreadyExisted } = require('../constant/error.type')
+const { userFormatError,
+  userAlreadyExisted,
+  registerError,
+  userUnRegisterError,
+  userLoginError,
+  userPasswordError } = require('../constant/error.type')
+
 const userValidator = async (ctx, next) => {
   const { username, password } = ctx.request.body
 
   // 合理性，判断username、password是否为空
   if (!username || !password) {
-    ctx.app.emit('error', userFormatError, ctx)
-    return
+    return ctx.app.emit('error', userFormatError, ctx)
   }
   await next()
 }
@@ -18,9 +23,12 @@ const verifyUser = async (ctx, next) => {
 
   // 合法性, 判断数据库中是否已有用户存在
   // 对数据库进行查找
-  if (await getUserInfo({ username })) {
-    ctx.app.emit('error', userAlreadyExisted, ctx)
-    return
+  try {
+    if (await getUserInfo({ username })) {
+      return ctx.app.emit('error', userAlreadyExisted, ctx)
+    }
+  } catch (error) {
+    return ctx.app.emit('error', registerError, ctx)
   }
   await next()
 }
@@ -35,8 +43,29 @@ const cryptPassword = async (ctx, next) => {
   await next()
 }
 
+const verifyLogin = async (ctx, next) => {
+  const { username, password } = ctx.request.body
+
+  try {
+    // 1. 判断用户是否已经存在
+    const res = await getUserInfo({ username })
+    if (!res) {
+      return ctx.app.emit('error', userUnRegisterError, ctx)
+    }
+
+    // 2. 密码是否匹配
+    if (!bcrypt.compareSync(password, res.password)) {
+      return ctx.app.emit('error', userPasswordError, ctx)
+    }
+  } catch (error) {
+    ctx.app.emit('error', userLoginError, ctx)
+  }
+  await next()
+}
+
 module.exports = {
   userValidator,
   verifyUser,
-  cryptPassword
+  cryptPassword,
+  verifyLogin
 }
